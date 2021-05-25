@@ -20,7 +20,7 @@ sort(L) when is_list(L) ->
     Ref = make_ref(),
     N = length(L),
     S = self(),
-    [spawn(fun() -> timer:sleep(?ACCURACY_FACTOR * X), S ! {Ref, X} end) || X <- L],
+    [spawn(fun() -> erlang:send_after(X * ?ACCURACY_FACTOR, S, {Ref, X}) end) || X <- L],
     sort_(Ref, [], N).
 
 %% Private
