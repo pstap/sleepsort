@@ -14,10 +14,8 @@
 -define(ACCURACY_FACTOR, 10).
 
 %% API
--spec sort(list(number())) -> list(number).
-sort(L) when is_list(L) ->
-    S = self(),
-
+-spec sort(list(number())) -> list(number()).
+sort(L) when is_list(L) ->    
     %% Partition the list into negative and positive numbers
     %% this is to solve the problem of how long to wait for negative numbers
     Neg = [X || X <- L, X < 0],
@@ -26,7 +24,8 @@ sort(L) when is_list(L) ->
     %% workers sleep for a time proportional to their magnitude, then send their own value to a pid
     Worker = fun(P, X, Ref) -> erlang:send_after(abs(X) * ?ACCURACY_FACTOR, P, {Ref, X}) end,
 
-    %% receivers send accumulated messages to the parent after having received a certain number of messages
+    %% receivers send accumulated messages to the parent (S) after having received the correct # of messages
+    S = self(),
     Receiver = fun(Ref, L1) -> S ! {self(), Ref, [receive {Ref, X} -> X end || _ <- L1]} end,
     
     %% spawn neg and pos workers in parallel
