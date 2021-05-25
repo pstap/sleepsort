@@ -18,23 +18,35 @@
 sort(L) when is_list(L) ->
     S = self(),
 
-    %% Partition the positive and negative numbers 
+    %% Partition the list into negative and positive numbers
+    %% this is to solve the problem of how long to wait for negative numbers
     Neg = [X || X <- L, X < 0],
     Pos = [X || X <- L, X >= 0],
+    
+    %% workers sleep for a time proportional to their magnitude, then send their own value to a pid
+    Worker = fun(P, X, Ref) -> erlang:send_after(abs(X) * ?ACCURACY_FACTOR, P, {Ref, X}) end,
 
-    F = fun(X, Ref) -> erlang:send_after(abs(X) * ?ACCURACY_FACTOR, S, {Ref, X}) end,
+    %% receivers send accumulated messages to the parent after having received a certain number of messages
+    Receiver = fun(Ref, L1) -> S ! {self(), Ref, [receive {Ref, X} -> X end || _ <- L1]} end,
     
-    %% spawn and collect positive first, then negative
-    PosRef = make_ref(),
-    NegRef = make_ref(),   
+    %% spawn neg and pos workers in parallel
+    PosRef = make_ref(),   
+    PosReceiver = spawn(fun() -> Receiver(PosRef, Pos) end),
+    [spawn(fun() -> Worker(PosReceiver, X, PosRef) end) || X <- Pos],    
+    
+    
+    NegRef = make_ref(),
+    NegReceiver = spawn(fun() -> Receiver(NegRef, Neg) end),
+    [spawn(fun() -> Worker(NegReceiver, X, NegRef) end) || X <- Neg],
+    
+    
+    %% await pos
+    PosSorted = receive {PosReceiver, PosRef, LP} -> LP end,
 
-    [spawn(fun() -> F(X, PosRef) end) || X <- Pos],    
-    PosSorted = [receive {PosRef, X} -> X end || _ <- Pos],
+    %% await neg
+    NegSorted = receive {NegReceiver, NegRef, LN} -> LN end,
     
-    [spawn(fun() -> F(X, NegRef) end) || X <- Neg],    
-    NegSorted = [receive {NegRef, X} -> X end || _ <- Neg],
-    
-    %% negatives received in reverse order
+    %% negatives are received in reverse order
     lists:reverse(NegSorted) ++ PosSorted.
 
 
