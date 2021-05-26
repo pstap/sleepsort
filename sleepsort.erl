@@ -1,9 +1,9 @@
-%%% @author Peter <peter@beep>
+%%% @author Peter
 %%% @copyright (C) 2021, Peter
 %%% @doc
 %%% please never use this
 %%% @end
-%%% Created : 24 May 2021 by Peter <peter@beep>
+%%% Created : 24 May 2021 by Peter
 
 -module(sleepsort).
 
@@ -11,7 +11,8 @@
 
 -export([sort/1]). 
 
--define(ACCURACY_FACTOR, 10).
+%% Hand tuned to pass all tests on my computer
+-define(ACCURACY_FACTOR, 80).
 
 %% API
 -spec sort(list(number())) -> list(number()).
@@ -21,8 +22,8 @@ sort(L) when is_list(L) ->
     Neg = [X || X <- L, X < 0],
     Pos = [X || X <- L, X >= 0],
     
-    %% workers sleep for a time proportional to their magnitude, then send their own value to a pid
-    Worker = fun(P, X, Ref) -> erlang:send_after(abs(X) * ?ACCURACY_FACTOR, P, {Ref, X}) end,
+    %% workers sleep for a time proportional to their magnitude, then send their own value to a pid (P)
+    Worker = fun(P, X, Ref) -> erlang:send_after(trunc(abs(X) * ?ACCURACY_FACTOR), P, {Ref, X}) end,
 
     %% receivers send accumulated messages to the parent (S) after having received the correct # of messages
     S = self(),
@@ -84,4 +85,17 @@ neg_test() ->
     Expected = [-4,-3,-2,-1,0,1,2,3,4],
     Actual = sort(Input),
     ?assertEqual(Expected, Actual).
+
+float_test() ->
+    Input = [3.3,3.0,1.5,4.0,7,-1],
+    Expected = [-1,1.5,3.0,3.3,4.0,7],
+    Actual = sort(Input),
+    ?assertEqual(Expected, Actual).    
+
+close_float_test() ->
+    %% had to adjust the ACCURACY FACTOR for this one
+    Input = [1.05,1.04,1.03,1.02,1.01],
+    Expected = [1.01,1.02,1.03,1.04,1.05],
+    Actual = sort(Input),
+    ?assertEqual(Expected, Actual).    
 -endif.
